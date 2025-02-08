@@ -7,51 +7,91 @@ document.addEventListener('DOMContentLoaded', () => {
     const COLS = 5;  // Changed from 8 to 5
     let chocolateGrid = Array(ROWS).fill().map(() => Array(COLS).fill(false)); // false means not eaten
     
-    let piecesEaten = 0;
-    const totalPieces = ROWS * COLS;
+    let isDragging = false;
+    let startX;
+    const DAILY_LIMIT = 2; // 2 full chocolate bars
+    const TOTAL_PIECES = 15; // Total pieces in one chocolate bar
 
-    // Create chocolate pieces (3x5 = 15 pieces)
-    for(let row = 0; row < ROWS; row++) {
-        for(let col = 0; col < COLS; col++) {
-            const piece = document.createElement('div');
-            piece.className = 'piece';
-            piece.dataset.row = row;
-            piece.dataset.col = col;
-            
-            piece.addEventListener('click', function() {
-                if (!isEatable(row, col)) {
-                    // Add shake animation if piece can't be eaten
-                    piece.classList.add('shake');
-                    setTimeout(() => piece.classList.remove('shake'), 500);
-                    return;
-                }
-                
-                console.log('Piece eaten!');
-                this.classList.add('eaten');
-                this.style.transform = 'scale(0)';
-                chocolateGrid[row][col] = true; // Mark as eaten
-                piecesEaten++;
-                playEatingSound();
-
-                // Check if all pieces are eaten
-                if (piecesEaten === totalPieces) {
-                    setTimeout(showCelebration, 500);
-                }
-            });
-            
-            // Add hover effect only for eatable pieces
-            piece.addEventListener('mouseover', function() {
-                if (isEatable(row, col)) {
-                    this.classList.add('eatable');
-                }
-            });
-            
-            piece.addEventListener('mouseout', function() {
-                this.classList.remove('eatable');
-            });
-            
-            chocolatePieces.appendChild(piece);
+    // Initialize the chocolate tracking system
+    function initDailyLimit() {
+        const today = new Date().toDateString();
+        const storedDate = localStorage.getItem('chocolateDate');
+        
+        // Reset counts if it's a new day
+        if (storedDate !== today) {
+            localStorage.setItem('chocolateDate', today);
+            localStorage.setItem('piecesEaten', '0');
+            localStorage.setItem('barsEaten', '0');
         }
+
+        // Check if limit already reached
+        const barsEaten = parseInt(localStorage.getItem('barsEaten') || '0');
+        if (barsEaten >= DAILY_LIMIT) {
+            disableChocolatePieces();
+            if (wrapper.classList.contains('unwrapped')) {
+                showDailyLimitMessage();
+            }
+        }
+    }
+
+    function updateChocolateCount() {
+        const piecesEaten = parseInt(localStorage.getItem('piecesEaten') || '0');
+        const barsEaten = parseInt(localStorage.getItem('barsEaten') || '0');
+        
+        if (barsEaten >= DAILY_LIMIT) return false;
+        
+        const newPiecesEaten = piecesEaten + 1;
+        localStorage.setItem('piecesEaten', newPiecesEaten.toString());
+        
+        // Check if a full bar is eaten
+        if (newPiecesEaten % TOTAL_PIECES === 0) {
+            const newBarsEaten = barsEaten + 1;
+            localStorage.setItem('barsEaten', newBarsEaten.toString());
+            
+            console.log('Chocolate bars eaten:', newBarsEaten); // Debug log
+            
+            if (newBarsEaten >= DAILY_LIMIT) {
+                setTimeout(() => {
+                    showDailyLimitMessage();
+                    disableChocolatePieces();
+                }, 500);
+            } else {
+                showBarCompletedMessage(newBarsEaten);
+            }
+        }
+        return true;
+    }
+
+    function showBarCompletedMessage(barsEaten) {
+        const overlay = document.createElement('div');
+        overlay.className = 'celebration-overlay';
+        
+        const content = document.createElement('div');
+        content.className = 'celebration-content';
+        content.innerHTML = `
+            <h2>Yummy! One chocolate bar done! 🍫</h2>
+            <p>You've eaten ${barsEaten} out of ${DAILY_LIMIT} chocolate bars for today.</p>
+            <button class="restart-btn" onclick="location.reload()">Get Next Bar</button>
+        `;
+        
+        overlay.appendChild(content);
+        document.querySelector('.chocolate-wrapper').appendChild(overlay);
+    }
+
+    function showDailyLimitMessage() {
+        const overlay = document.createElement('div');
+        overlay.className = 'celebration-overlay';
+        
+        const content = document.createElement('div');
+        content.className = 'celebration-content';
+        content.innerHTML = `
+            <h2>That's enough chocolate for today! 🍫</h2>
+            <p>You've had your ${DAILY_LIMIT} chocolate bars for today. Come back tomorrow for more!</p>
+            <button class="restart-btn" onclick="location.reload()">Close</button>
+        `;
+        
+        overlay.appendChild(content);
+        document.querySelector('.chocolate-wrapper').appendChild(overlay);
     }
 
     // Function to check if a piece can be eaten
@@ -73,59 +113,52 @@ document.addEventListener('DOMContentLoaded', () => {
                chocolateGrid[row][col+1];   // right
     }
 
-    // Unwrapping animation
-    let isDragging = false;
-    let startX;
-    let startY;
-    let initialTouchX;
-    let hasMoved = false;
+    // Enhanced touch handling
+    let touchStartX = 0;
+    let minSwipeDistance = window.innerWidth < 768 ? 30 : 100; // Reduced threshold for mobile
 
-    // Add touch event handlers
-    wrapper.addEventListener('touchstart', handleTouchStart, { passive: true });
-    wrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
-    wrapper.addEventListener('touchend', handleTouchEnd);
+    // Touch event handlers
+    wrapper.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        wrapper.style.transition = 'none'; // Remove transition during drag
+    }, { passive: true });
 
-    function handleTouchStart(e) {
-        isDragging = true;
-        initialTouchX = e.touches[0].clientX;
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        hasMoved = false;
-    }
-
-    function handleTouchMove(e) {
-        if (!isDragging) return;
+    wrapper.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Prevent scrolling while dragging
         
-        const touchX = e.touches[0].clientX;
-        const touchY = e.touches[0].clientY;
-        const diffX = touchX - startX;
-        const diffY = touchY - startY;
-
-        // Determine if the movement is more horizontal than vertical
-        if (Math.abs(diffX) > Math.abs(diffY)) {
-            e.preventDefault(); // Prevent scrolling only for horizontal moves
-            hasMoved = true;
-            
-            const diff = touchX - initialTouchX;
-            
-            // Make unwrapping easier on mobile
-            if (Math.abs(diff) > 50) { // Reduced threshold for mobile
-                wrapper.classList.add('unwrapped');
-                playUnwrapSound();
-                wrapper.style.pointerEvents = 'none';
-            }
+        const currentX = e.touches[0].clientX;
+        const diffX = currentX - touchStartX;
+        
+        // Add visual feedback during drag
+        if (diffX > 0) {
+            wrapper.style.transform = `translateX(${diffX * 0.5}px) rotateY(-${diffX * 0.2}deg)`;
         }
+        
+        // Check if swipe distance is enough
+        if (diffX > minSwipeDistance && !wrapper.classList.contains('unwrapped')) {
+            unwrapChocolate();
+        }
+    }, { passive: false });
+
+    wrapper.addEventListener('touchend', () => {
+        // Reset transform if not unwrapped
+        if (!wrapper.classList.contains('unwrapped')) {
+            wrapper.style.transition = 'transform 0.3s ease';
+            wrapper.style.transform = '';
+        }
+    });
+
+    // Function to handle unwrapping
+    function unwrapChocolate() {
+        wrapper.classList.add('unwrapped');
+        playUnwrapSound();
+        wrapper.style.transition = 'all 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)';
+        wrapper.style.transform = 'translateX(120%) rotateY(-120deg)';
+        wrapper.style.opacity = '0';
+        wrapper.style.pointerEvents = 'none';
     }
 
-    function handleTouchEnd() {
-        isDragging = false;
-        if (!hasMoved) {
-            // Handle tap if there was no significant movement
-            wrapper.click();
-        }
-    }
-
-    // Keep existing mouse/drag event handlers
+    // Keep existing mouse/drag event handlers but adjust threshold
     wrapper.addEventListener('dragstart', (e) => {
         isDragging = true;
         startX = e.clientX;
@@ -138,16 +171,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isDragging || !e.clientX) return;
         
         const diff = e.clientX - startX;
-        if (Math.abs(diff) > 100) {
+        if (Math.abs(diff) > minSwipeDistance) {
             wrapper.classList.add('unwrapped');
             playUnwrapSound();
             wrapper.style.pointerEvents = 'none';
         }
     });
 
-    wrapper.addEventListener('dragend', () => {
-        isDragging = false;
-    });
+    // Add visual feedback styles
+    const styles = document.createElement('style');
+    styles.textContent = `
+        .wrapper {
+            touch-action: none;
+            will-change: transform;
+        }
+        
+        @media (max-width: 768px) {
+            .wrapper {
+                cursor: grab;
+                transition: transform 0.3s ease;
+            }
+            
+            .wrapper:active {
+                cursor: grabbing;
+            }
+        }
+    `;
+    document.head.appendChild(styles);
 
     // Sound effects
     function playUnwrapSound() {
@@ -160,56 +210,60 @@ document.addEventListener('DOMContentLoaded', () => {
         audio.play().catch(err => console.log('Sound play failed:', err));
     }
 
-    function showCelebration() {
-        // Create celebration overlay
-        const chocolateBar = document.querySelector('.chocolate');  // Target the chocolate div instead
-        const celebration = document.createElement('div');
-        celebration.className = 'celebration-overlay';
+    function createPiece(row, col) {
+        const piece = document.createElement('div');
+        piece.className = 'piece';
+        piece.dataset.row = row;
+        piece.dataset.col = col;
         
-        const content = document.createElement('div');
-        content.className = 'celebration-content';
-        content.innerHTML = `
-            <h2>Yummy! 😋</h2>
-            <p>You've enjoyed every bit of chocolate!</p>
-            <button class="restart-btn">Have Another Chocolate? 🍫</button>
-        `;
-        
-        celebration.appendChild(content);
-        chocolateBar.appendChild(celebration); // Append to chocolate div
+        piece.addEventListener('click', function() {
+            if (!wrapper.classList.contains('unwrapped')) {
+                piece.classList.add('shake');
+                setTimeout(() => piece.classList.remove('shake'), 500);
+                return;
+            }
 
-        // Start confetti
-        startConfetti();
+            const barsEaten = parseInt(localStorage.getItem('barsEaten') || '0');
+            if (barsEaten >= DAILY_LIMIT) {
+                showDailyLimitMessage();
+                return;
+            }
 
-        // Add restart functionality
-        const restartBtn = celebration.querySelector('.restart-btn');
-        restartBtn.addEventListener('click', () => {
-            location.reload();
+            if (!isEatable(row, col)) {
+                piece.classList.add('shake');
+                setTimeout(() => piece.classList.remove('shake'), 500);
+                return;
+            }
+
+            if (updateChocolateCount()) {
+                this.classList.add('eaten');
+                chocolateGrid[row][col] = true;
+                playEatingSound();
+            }
         });
+        
+        // Add hover effect only for eatable pieces
+        piece.addEventListener('mouseover', function() {
+            if (isEatable(row, col)) {
+                this.classList.add('eatable');
+            }
+        });
+        
+        piece.addEventListener('mouseout', function() {
+            this.classList.remove('eatable');
+        });
+        
+        return piece;
     }
 
-    function startConfetti() {
-        for (let i = 0; i < 100; i++) {
-            createConfetti();
+    // Create chocolate pieces
+    for(let row = 0; row < ROWS; row++) {
+        for(let col = 0; col < COLS; col++) {
+            const piece = createPiece(row, col);
+            chocolatePieces.appendChild(piece);
         }
     }
 
-    function createConfetti() {
-        const chocolateBar = document.querySelector('.chocolate');
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        
-        // Position confetti within chocolate bar
-        confetti.style.left = Math.random() * 100 + '%';
-        confetti.style.top = Math.random() * 100 + '%';  // Random starting position within chocolate
-        confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
-        confetti.style.opacity = Math.random();
-        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-        
-        const colors = ['#FFD700', '#6b35a4', '#4a1e1e', '#FF69B4', '#632626'];
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        
-        chocolateBar.appendChild(confetti);
-        
-        setTimeout(() => confetti.remove(), 5000);
-    }
+    // Initialize the daily limit system
+    initDailyLimit();
 }); 
