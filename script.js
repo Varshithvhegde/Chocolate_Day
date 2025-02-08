@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedDate = localStorage.getItem('chocolateDate');
         
         // Reset counts if it's a new day
+        localStorage.setItem('piecesEaten', '0');
         if (storedDate !== today) {
             localStorage.setItem('chocolateDate', today);
-            localStorage.setItem('piecesEaten', '0');
             localStorage.setItem('barsEaten', '0');
         }
 
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateChocolateCount() {
         const piecesEaten = parseInt(localStorage.getItem('piecesEaten') || '0');
         const barsEaten = parseInt(localStorage.getItem('barsEaten') || '0');
+        
         
         if (barsEaten >= DAILY_LIMIT) return false;
         
@@ -62,6 +63,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
+    function getRandomMessage(type) {
+        const messages = {
+            barCompleted: [
+                "Mmmm... That was delicious! 🤤",
+                "Chocolate heaven achieved! 🍫✨",
+                "You're a chocolate connoisseur! 👑",
+                "That hit the sweet spot! 🎯",
+                "Chocolate bliss unlocked! 🌟"
+            ],
+            nextBar: [
+                "Ready for another chocolate adventure?",
+                "Your next chocolate bar awaits!",
+                "More chocolatey goodness coming up!",
+                "Time for round two of deliciousness!",
+                "Another bar of happiness awaits!"
+            ],
+            dailyLimit: [
+                "Whoa there, chocolate champion! 🏆",
+                "Mission accomplished, chocolate master! 🌟",
+                "You've reached peak chocolate happiness! 🎉",
+                "That's a chocolate-perfect day! ⭐",
+                "You're officially a chocolate conqueror! 👑"
+            ],
+            limitMessage: [
+                "Your chocolate quota is complete for today! Come back tomorrow for more sweet adventures!",
+                "You've mastered the art of chocolate enjoyment today! Time to save some joy for tomorrow!",
+                "Two bars of happiness achieved! Let's continue the chocolate journey tomorrow!",
+                "Your sweet tooth has been satisfied! New chocolate adventures await tomorrow!",
+                "Perfect chocolate balance achieved! See you tomorrow for more delicious moments!"
+            ]
+        };
+
+        return messages[type][Math.floor(Math.random() * messages[type].length)];
+    }
+
     function showBarCompletedMessage(barsEaten) {
         const overlay = document.createElement('div');
         overlay.className = 'celebration-overlay';
@@ -69,9 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = document.createElement('div');
         content.className = 'celebration-content';
         content.innerHTML = `
-            <h2>Yummy! One chocolate bar done! 🍫</h2>
-            <p>You've eaten ${barsEaten} out of ${DAILY_LIMIT} chocolate bars for today.</p>
-            <button class="restart-btn" onclick="location.reload()">Get Next Bar</button>
+            <h2>${getRandomMessage('barCompleted')}</h2>
+            <p>You've enjoyed every bit of chocolate!</p>
+            <button class="restart-btn" onclick="location.reload()">Have Another Chocolate? 🍫</button>
         `;
         
         overlay.appendChild(content);
@@ -84,9 +120,24 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const content = document.createElement('div');
         content.className = 'celebration-content';
+        
+        // Add some fun emojis that will float around
+        // const emojis = ['🍫', '⭐', '🎉', '✨', '🌟'];
+        // emojis.forEach((emoji, index) => {
+        //     const floatingEmoji = document.createElement('span');
+        //     floatingEmoji.className = 'floating-emoji';
+        //     floatingEmoji.textContent = emoji;
+        //     floatingEmoji.style.animationDelay = `${index * 0.3}s`;
+        //     overlay.appendChild(floatingEmoji);
+        // });
+
         content.innerHTML = `
-            <h2>That's enough chocolate for today! 🍫</h2>
-            <p>You've had your ${DAILY_LIMIT} chocolate bars for today. Come back tomorrow for more!</p>
+            <h2>${getRandomMessage('dailyLimit')}</h2>
+            <p>${getRandomMessage('limitMessage')}</p>
+            <div class="chocolate-stats">
+                <span>🍫 × 2 completed</span>
+                <span>⭐ Sweet victory!</span>
+            </div>
             <button class="restart-btn" onclick="location.reload()">Close</button>
         `;
         
@@ -202,12 +253,77 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sound effects
     function playUnwrapSound() {
         const audio = new Audio('unwrap-sound.mp3');
-        audio.play().catch(err => console.log('Sound play failed:', err));
+        
+        // Pre-load the audio
+        audio.load();
+        
+        // Enable audio playback on user interaction
+        audio.preload = 'auto';
+        
+        // Handle both parts of the sound in a more reliable way
+        const playFirstPart = () => {
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        // First part played successfully
+                        setTimeout(() => {
+                            audio.pause();
+                            playSecondPart();
+                        }, 2000);
+                    })
+                    .catch(error => {
+                        console.log('Sound play failed:', error);
+                    });
+            }
+        };
+
+        const playSecondPart = () => {
+            audio.currentTime = 5;
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        // Second part played successfully
+                        setTimeout(() => {
+                            audio.pause();
+                        }, 1000);
+                    })
+                    .catch(error => {
+                        console.log('Sound play failed:', error);
+                    });
+            }
+        };
+
+        // Start the sound sequence
+        playFirstPart();
     }
 
     function playEatingSound() {
         const audio = new Audio('eating-sound.mp3');
-        audio.play().catch(err => console.log('Sound play failed:', err));
+        
+        // Pre-load the audio to reduce delay
+        audio.load();
+        audio.preload = 'auto';
+        
+        // Play immediately
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    // Shorter timeout for more immediate feedback
+                    setTimeout(() => {
+                        audio.pause();
+                    }, 300); // Reduced from 1000ms to 300ms for quicker response
+                })
+                .catch(error => {
+                    console.log('Sound play failed:', error);
+                });
+        }
     }
 
     function createPiece(row, col) {

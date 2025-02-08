@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
 * {
     margin: 0;
     padding: 0;
@@ -195,11 +196,10 @@ h1 {
     left: 50%;
     transform: translate(-50%, -50%) rotate(-45deg);
     color: rgba(78, 45, 45, 0.9);
-    font-family: 'Arial', sans-serif;
-    font-size: 0.7em;
+    font-family: 'Dancing Script', cursive; /* Updated to cursive font */
+    font-size: 1.5em;
     font-weight: bold;
     letter-spacing: 0.05em;
-    text-transform: uppercase;
     pointer-events: none;
     width: 140%;
     text-align: center;
@@ -400,7 +400,7 @@ h1 {
     }
 
     .piece::after {
-        font-size: 0.6em;
+        font-size: 1.1em;
     }
 
     /* Make celebration content mobile-friendly */
@@ -537,5 +537,36 @@ h1 {
 
     .daily-limit-content p {
         font-size: 0.9rem;
+    }
+}
+
+.credits {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    color: #4a1e1e;
+    font-size: 0.9rem;
+    z-index: 100;
+}
+
+.credits a {
+    color: #4a1e1e;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.credits a:hover {
+    color: #632626;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .credits {
+        bottom: 10px;
+        font-size: 0.8rem;
     }
 }
