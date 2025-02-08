@@ -1,4 +1,5 @@
 # Chocolate Day Special 🍫
+<!-- Add Image of website website_screenshot.png -->
 
 Celebrate Chocolate Day with a delightful virtual chocolate experience! Unwrap, savor, and enjoy the sweetness of chocolate right from your screen.
 
@@ -11,6 +12,7 @@ Celebrate Chocolate Day with a delightful virtual chocolate experience! Unwrap, 
 - **Cursive Branding**: Elegant "Cadbury" text on each piece.
 
 ## Demo
+![website_screenshot](website_screenshot.png)
 
 Check out the live demo [here](https://chocolate-day-special.vercel.app/).
 
