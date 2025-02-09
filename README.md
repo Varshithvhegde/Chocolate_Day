@@ -51,7 +51,3 @@ This project is licensed under the MIT License.
 ## Credits
 
 Made with 🍫 by [Varshith](https://github.com/Varshithvhegde).
-
----
-
-Feel free to customize the README further to suit your project's needs! Let me know if you need any more help.
